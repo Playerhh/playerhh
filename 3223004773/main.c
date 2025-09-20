@@ -1,10 +1,11 @@
-/**
+﻿/**
  * 论文查重系统 - 基于n-gram和Jaccard相似度算法
  * 作者: playerhh
  * 功能: 计算两个文本文件的相似度（重复率）
  * 输入: 原文文件路径, 抄袭版文件路径, 输出文件路径
  * 输出: 相似度分数（0.00-1.00）
  */
+#define _CRT_SECURE_NO_WARNINGS 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@
 #define N_GRAM 3               // 定义使用3-gram算法（即3个字符为一个文本片段）
 #define MAX_NGRAMS 50000       // 定义最大n-gram数量限制，防止内存溢出
 #define HASH_TABLE_SIZE 100003 // 哈希表大小（使用质数100003可以减少哈希冲突）
+
 
 // ==================== 数据结构定义 ====================
 
@@ -61,7 +63,7 @@ void generate_ngrams(const char *text, HashTable *ht);                          
  * @param argv 命令行参数数组（字符串数组）
  * @return 程序退出状态码（0表示成功，非0表示失败）
  */
-int main(int argc, char *argv[])
+int main (int argc, char *argv[])
 {
     // 检查命令行参数数量是否正确（应该是程序名+3个文件路径=4个参数）
     if (argc != 4)
@@ -168,23 +170,47 @@ int main(int argc, char *argv[])
  */
 void remove_punctuation(char *str)
 {
-    char *src = str; // 源指针，用于读取原始字符串
-    char *dst = str; // 目标指针，用于写入处理后的字符串
+    char *src = str;
+    char *dst = str;
 
-    // 遍历字符串中的每个字符
     while (*src)
     {
-        // 判断字符是否需要保留：
-        // isalnum: 检查是否是字母或数字
-        // *src == ' ': 检查是否是空格
-        // (*src & 0x80): 检查是否是中文字符（ASCII码大于127）
-        if (isalnum((unsigned char)*src) || *src == ' ' || (*src & 0x80))
+        // 检查是否是ASCII字母、数字或空格
+        if (isalnum((unsigned char)*src) || *src == ' ')
         {
-            *dst++ = *src; // 保留该字符，并移动目标指针
+            *dst++ = *src;
+            src++;
         }
-        src++; // 移动源指针到下一个字符
+        // 检查是否是中文字符（UTF-8编码）
+        else if ((unsigned char)*src & 0x80)
+        {
+            // 获取完整的UTF-8字符
+            unsigned char byte1 = (unsigned char)*src;
+            unsigned char byte2 = (unsigned char)*(src + 1);
+
+            // 常见中文标点符号的UTF-8编码范围
+            // 中文逗号：EFBC8C, 中文句号：EFBC8E, 中文感叹号：EFBC81
+            // 中文冒号：EFBC9A, 中文分号：EFBC9B, 中文问号：EFBC9F
+            if (byte1 == 0xEF && byte2 == 0xBC)
+            {
+                // 这是中文标点，跳过3个字节
+                src += 3;
+            }
+            else
+            {
+                // 这是中文字符，保留3个字节
+                *dst++ = *src++;
+                *dst++ = *src++;
+                *dst++ = *src++;
+            }
+        }
+        else
+        {
+            // 跳过ASCII标点符号
+            src++;
+        }
     }
-    *dst = '\0'; // 在处理后的字符串末尾添加结束符
+    *dst = '\0';
 }
 
 /**
